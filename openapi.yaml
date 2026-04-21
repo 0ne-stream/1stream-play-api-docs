@@ -1,0 +1,1680 @@
+openapi: 3.0.3
+info:
+  title: B2C Player API
+  description: |
+    API documentation for the B2C Player streaming content API.
+    
+    This API provides access to live streams, VOD (movies), series, and related content.
+    
+    ## Key Features
+    
+    - **Feed Mode**: Use `with_links=0` to disable play links for improved performance and caching
+    - **Incremental Updates**: Use `updated_at_gt` parameter to fetch only updated content
+    - **Caching Optimization**: Use `bkey` parameter with `with_links=0` for nginx-level caching
+    - **Content Hashes**: Use `/content-info/hashes` endpoint to detect content changes
+    
+    ## Authentication
+    
+    First, obtain an authentication token using the `/auth` endpoint. The token does not expire
+    and should be included in all subsequent requests via the `Authorization: Bearer <token>` header.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://api.example.com/play/b2c/v1
+    description: |
+      Production server. Replace with your actual API endpoint.
+      The base URL will be provided by your API provider.
+
+tags:
+  - name: Authentication
+    description: Authentication endpoints
+  - name: Content
+    description: Content retrieval endpoints (live, VOD, series)
+  - name: Categories
+    description: Category listing endpoints
+  - name: Content Info
+    description: Content metadata and hash information
+  - name: User Info
+    description: User account information endpoints
+  - name: Links
+    description: Play link retrieval
+  - name: Notifications
+    description: Notification management
+  - name: EPG
+    description: Electronic Program Guide endpoints
+  - name: Categories
+    description: Category listing endpoints
+  - name: Bouquets
+    description: Bouquet management endpoints
+
+paths:
+  /categories/live:
+    get:
+      tags:
+        - Categories
+      summary: Get live categories
+      description: Retrieve category list for live content.
+      operationId: getLiveCategories
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /categories/vod:
+    get:
+      tags:
+        - Categories
+      summary: Get VOD categories
+      description: Retrieve category list for VOD (movies) content.
+      operationId: getVodCategories
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /categories/series:
+    get:
+      tags:
+        - Categories
+      summary: Get series categories
+      description: Retrieve category list for series content.
+      operationId: getSeriesCategories
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /categories/radio:
+    get:
+      tags:
+        - Categories
+      summary: Get radio categories
+      description: Retrieve category list for radio content.
+      operationId: getRadioCategories
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate and obtain access token
+      description: |
+        Authenticate using username and password to obtain an authentication token.
+        The token does not expire and can be reused for all subsequent API requests.
+      operationId: authenticate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Your API username
+                  example: "your_username"
+                password:
+                  type: string
+                  description: Your API password
+                  format: password
+                  example: "your_password"
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                auth_token: "eyJpdiI6InNkcUp0RnhlN3oxbUFsbWpLNFVnbHc9PSIsInZhbHVlIjoia3hJa2NuKys3VDdkc2FaeHY1dVc1U3dFYXh5bi9XeFZLMzZQZnlVUzU0QT0iLCJtYWMiOiI2YmEwMDM3MGU3ZGZmNTVmMTYwZjQ4MDI3ZjgwZmYzOGQ4OWI2YzFhMDg0YWY1MDZkMjEyMmU2NDEzZjlkYzNiIiwidGFnIjoiIn0="
+                exp: null
+        '403':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/live:
+    get:
+      tags:
+        - Content
+      summary: Get live streaming channels
+      description: |
+        Retrieve a list of live streaming channels. Supports pagination and optional query parameters
+        for filtering and performance optimization.
+      operationId: getLiveContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/OrderByLiveVod'
+        - $ref: '#/components/parameters/WithLinks'
+        - $ref: '#/components/parameters/UpdatedAtGt'
+        - $ref: '#/components/parameters/Bkey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveContentResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/vod:
+    get:
+      tags:
+        - Content
+      summary: Get VOD (movies) content
+      description: |
+        Retrieve a list of Video on Demand (movie) content. Supports pagination and optional
+        query parameters for filtering and performance optimization.
+      operationId: getVodContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/OrderByLiveVod'
+        - $ref: '#/components/parameters/WithLinks'
+        - $ref: '#/components/parameters/UpdatedAtGt'
+        - $ref: '#/components/parameters/Bkey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VodContentResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/vod/{id}:
+    get:
+      tags:
+        - Content
+      summary: Get VOD by ID
+      description: Retrieve detailed information about a specific movie.
+      operationId: getVodById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The stream_id of the movie
+          schema:
+            type: string
+            example: "0329f4da-9882-40f6-bad6-b63f48f909e8"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VodDetailResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Movie not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/series:
+    get:
+      tags:
+        - Content
+      summary: Get series content
+      description: |
+        Retrieve a list of TV series. Supports pagination and optional query parameters
+        for filtering and performance optimization.
+      operationId: getSeriesContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/OrderBySeries'
+        - $ref: '#/components/parameters/WithLinks'
+        - $ref: '#/components/parameters/UpdatedAtGt'
+        - $ref: '#/components/parameters/Bkey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesContentResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/radio:
+    get:
+      tags:
+        - Content
+      summary: Get radio content
+      description: |
+        Retrieve a list of radio stations. Supports pagination and optional query parameters
+        for filtering and performance optimization.
+      operationId: getRadioContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/OrderByLiveVod'
+        - $ref: '#/components/parameters/WithLinks'
+        - $ref: '#/components/parameters/UpdatedAtGt'
+        - $ref: '#/components/parameters/Bkey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RadioContentResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/series/{id}:
+    get:
+      tags:
+        - Content
+      summary: Get series by ID
+      description: |
+        Retrieve detailed information about a specific series, including seasons and episodes.
+      operationId: getSeriesById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The series_id of the series
+          schema:
+            type: string
+            example: "7fc18b3a-9e7f-4084-a9e5-f3bf05e6d00e"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetailResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bouquets:
+    get:
+      tags:
+        - Bouquets
+      summary: Get bouquets
+      description: |
+        Retrieve a list of all available bouquets for the authenticated user.
+        Bouquets are collections of content that can be enabled or disabled.
+      operationId: getBouquets
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BouquetsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bouquet/{bouquet_id}/{state}:
+    post:
+      tags:
+        - Bouquets
+      summary: Enable or disable bouquet
+      description: |
+        Enable or disable a bouquet for the authenticated user line.
+        Changes take effect immediately.
+      operationId: setBouquetState
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bouquet_id
+          in: path
+          required: true
+          description: The bouquet ID
+          schema:
+            type: integer
+            example: 2
+        - name: state
+          in: path
+          required: true
+          description: State to set
+          schema:
+            type: string
+            enum: [on, off]
+            example: "on"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BouquetStateResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Bouquet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content-info/hashes:
+    get:
+      tags:
+        - Content Info
+      summary: Get content hashes and timestamps
+      description: |
+        Retrieve current content hashes and timestamps. This endpoint is useful for implementing
+        feed functionality to detect content updates. Use the hashes to determine if content has
+        changed, and use the timestamps with the `updated_at_gt` parameter for incremental updates.
+      operationId: getContentHashes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentHashesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user-info:
+    get:
+      tags:
+        - User Info
+      summary: Get user information
+      description: |
+        Retrieve information about the authenticated user, including account status,
+        connection limits, and allowed output formats.
+      operationId: getUserInfo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /links/{stream}:
+    get:
+      tags:
+        - Links
+      summary: Get play links for a stream
+      description: |
+        Retrieve play links for a specific stream. Use this endpoint when `with_links=0` is used
+        in content endpoints to fetch links on demand.
+      operationId: getStreamLinks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stream
+          in: path
+          required: true
+          description: The stream_id of the content
+          schema:
+            type: string
+            example: "0329f4da-9882-40f6-bad6-b63f48f909e8"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinksResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /play/archive/{stream_id}/{start}/{end}:
+    get:
+      tags:
+        - Links
+      summary: Get TV Archive stream
+      description: |
+        Access previously recorded content from live streams. The archive availability is indicated
+        in the live content response via the `tv_archive`, `tv_archive_id`, and `tv_archive_duration` fields.
+        Only channels with `tv_archive: 1` support archive playback.
+      operationId: getTvArchive
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          description: The stream_id from the live content response
+          schema:
+            type: string
+            format: uuid
+            example: "84c09631-8fb7-4cf2-b30c-7d7e8a843574"
+        - name: start
+          in: path
+          required: true
+          description: Start timestamp (Unix timestamp in seconds)
+          schema:
+            type: integer
+            example: 1702047600
+        - name: end
+          in: path
+          required: true
+          description: End timestamp (Unix timestamp in seconds)
+          schema:
+            type: integer
+            example: 1702051200
+      responses:
+        '200':
+          description: Archive stream available
+          content:
+            video/mp2t:
+              schema:
+                type: string
+                format: binary
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archive not available or stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get notifications
+      description: |
+        Returns a list of notification messages with options for filtering and ordering.
+      operationId: getNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period_sent
+          in: query
+          required: false
+          description: Filter by sent period
+          schema:
+            type: string
+        - name: period_read
+          in: query
+          required: false
+          description: Filter by read period
+          schema:
+            type: string
+        - name: period_created
+          in: query
+          required: false
+          description: Filter by created period
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: order_by
+          in: query
+          required: false
+          description: Sorting order
+          schema:
+            type: string
+            enum: [sent_asc, sent_desc, read_asc, read_desc, created_asc, created_desc]
+            default: created_asc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/get-new:
+    get:
+      tags:
+        - Notifications
+      summary: Get new notifications
+      description: |
+        Returns a list of new notification messages. After messages are fetched by this method,
+        their status is updated to 'sent'.
+      operationId: getNewNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: order_by
+          in: query
+          required: false
+          description: Sorting order
+          schema:
+            type: string
+            enum: [created_asc, created_desc]
+            default: created_asc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/mark-read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notifications as read
+      description: |
+        Update the status to 'read' for one or all notification messages (for the authenticated line).
+        If message_id is provided, only that specific notification is marked as read.
+        If message_id is omitted, all notifications for the authenticated line are marked as read.
+      operationId: markNotificationsRead
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message_id:
+                  type: integer
+                  description: Specific notification message ID to mark as read
+                  example: 123
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /xml-epg:
+    get:
+      tags:
+        - EPG
+      summary: Get XML EPG
+      description: |
+        Retrieve Electronic Program Guide (EPG) data in XML format. The output format is the same
+        as in XC API. Returns EPG data for all channels.
+      operationId: getXmlEpg
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/xml:
+              schema:
+                type: string
+                description: XML EPG data in XC API format
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /epg/{stream_id}/short:
+    get:
+      tags:
+        - EPG
+      summary: Get short EPG for stream
+      description: |
+        Retrieve a short (4-hour) EPG listing for a specific program/stream.
+      operationId: getShortEpg
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          description: The stream_id of the channel/program
+          schema:
+            type: string
+            format: uuid
+            example: "84c09631-8fb7-4cf2-b30c-7d7e8a843574"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortEpgResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Authentication token obtained from the /auth endpoint.
+        Include the token in the Authorization header as: Bearer <token>
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Page number for pagination
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        example: 1
+
+    PerPage:
+      name: per_page
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        example: 10
+
+    WithLinks:
+      name: with_links
+      in: query
+      description: |
+        Include play links in the response. Set to 0 to disable links for improved performance
+        and caching. When disabled, use the /links/{stream} endpoint to fetch links on demand.
+      required: false
+      schema:
+        type: integer
+        enum: [0, 1]
+        default: 1
+        example: 0
+
+    UpdatedAtGt:
+      name: updated_at_gt
+      in: query
+      description: |
+        Filter content updated after the specified timestamp (ISO 8601 format).
+        Useful for implementing feed functionality to fetch only updated content.
+      required: false
+      schema:
+        type: string
+        format: date-time
+        example: "2025-12-01T00:00:00Z"
+
+    Bkey:
+      name: bkey
+      in: query
+      description: |
+        Bouquet hash for nginx-level caching optimization. This parameter only works when
+        `with_links=0`. The bkey is the same for multiple users sharing the same bouquet,
+        allowing nginx to cache responses at the bouquet level.
+      required: false
+      schema:
+        type: string
+        example: "ddf1c4f590c692189ca0230e28f0357c"
+
+    CategoryId:
+      name: category_id
+      in: query
+      description: Filter content by category id
+      required: false
+      schema:
+        type: string
+        example: "3"
+
+    OrderByLiveVod:
+      name: order_by
+      in: query
+      description: |
+        Sorting for live/VOD content. Values: bouquet_order (default), category_asc,
+        name_asc, name_desc, addtime_asc, addtime_desc.
+      required: false
+      schema:
+        type: string
+        enum: [bouquet_order, category_asc, name_asc, name_desc, addtime_asc, addtime_desc]
+        example: bouquet_order
+
+    OrderBySeries:
+      name: order_by
+      in: query
+      description: |
+        Sorting for series content. Values: name_asc (default), episode_desc (last episode added),
+        addtime_asc, addtime_desc.
+      required: false
+      schema:
+        type: string
+        enum: [name_asc, episode_desc, addtime_asc, addtime_desc]
+        example: name_asc
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        auth_token:
+          type: string
+          description: Authentication token to use in subsequent requests
+        exp:
+          type: string
+          nullable: true
+          description: Token expiration (null means token does not expire)
+
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: object
+          properties:
+            message:
+              type: string
+              description: Error message
+            status_code:
+              type: integer
+              description: HTTP status code
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+        per_page:
+          type: integer
+          nullable: true
+          description: Items per page (null if not paginated)
+        total_pages:
+          type: integer
+          description: Total number of pages
+        total_items:
+          type: integer
+          description: Total number of items
+
+    LiveContentItem:
+      type: object
+      properties:
+        num:
+          type: integer
+        name:
+          type: string
+        stream_type:
+          type: string
+          enum: [live]
+        stream_id:
+          type: string
+          format: uuid
+        stream_icon:
+          type: string
+          nullable: true
+        epg_channel_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        is_adult:
+          type: integer
+          enum: [0, 1]
+        categories:
+          type: array
+          items:
+            type: integer
+        links:
+          type: object
+          nullable: true
+          properties:
+            m3u8:
+              type: string
+              format: uri
+            ts:
+              type: string
+              format: uri
+        tv_archive:
+          type: integer
+        tv_archive_id:
+          type: string
+          format: uuid
+          description: Archive identifier (UUID format) used in archive URLs
+        tv_archive_duration:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/StreamMetadata'
+
+    VodContentItem:
+      type: object
+      properties:
+        num:
+          type: integer
+        name:
+          type: string
+        stream_type:
+          type: string
+          enum: [movie]
+        stream_id:
+          type: string
+          format: uuid
+        tmdb_id:
+          type: integer
+          nullable: true
+        release_date:
+          type: string
+        stream_icon:
+          type: string
+        rating:
+          type: number
+        rating_5based:
+          type: number
+        added:
+          type: string
+          format: date-time
+        is_adult:
+          type: integer
+          enum: [0, 1]
+        categories:
+          type: array
+          items:
+            type: integer
+        genre:
+          type: string
+        links:
+          type: object
+          nullable: true
+          properties:
+            mp4:
+              type: string
+              format: uri
+        updated_at:
+          type: string
+          format: date-time
+        keywords:
+          type: array
+          items:
+            type: object
+        certification:
+          type: string
+        certification_country:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/StreamMetadata'
+
+    SeriesContentItem:
+      type: object
+      properties:
+        num:
+          type: integer
+        name:
+          type: string
+        series_id:
+          type: string
+          format: uuid
+        tmdb_id:
+          type: integer
+        cover:
+          type: string
+          format: uri
+        youtube_trailer:
+          type: string
+        genre:
+          type: string
+        release_date:
+          type: string
+        plot:
+          type: string
+        cast:
+          type: string
+        rating:
+          type: string
+        rating_5based:
+          type: number
+        director:
+          type: string
+        backdrop_path:
+          type: array
+          items:
+            type: string
+            format: uri
+        last_modified:
+          type: string
+          format: date-time
+        episode_run_time:
+          type: string
+        categories:
+          type: array
+          items:
+            type: integer
+        updated_at:
+          type: string
+          format: date-time
+        keywords:
+          type: array
+          items:
+            $ref: '#/components/schemas/Keyword'
+        certification:
+          type: string
+        certification_country:
+          type: string
+        is_adult:
+          type: integer
+          enum: [0, 1]
+
+    StreamMetadata:
+      type: object
+      properties:
+        video_codec:
+          type: string
+          nullable: true
+        audio_codec:
+          type: string
+          nullable: true
+        quality:
+          type: string
+        bitrate:
+          type: integer
+          nullable: true
+        subtitles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtitle'
+
+    Subtitle:
+      type: object
+      properties:
+        codec_name:
+          type: string
+        language:
+          type: string
+
+    Keyword:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    LiveContentResponse:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/LiveContentItem'
+
+    VodContentResponse:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/VodContentItem'
+
+    VodDetailResponse:
+      type: object
+      properties:
+        info:
+          type: object
+          properties:
+            movie_image:
+              type: string
+            tmdb_id:
+              type: string
+            backdrop:
+              type: string
+            youtube_trailer:
+              type: string
+            genre:
+              type: string
+            plot:
+              type: string
+            cast:
+              type: string
+            rating:
+              type: string
+            director:
+              type: string
+            release_date:
+              type: string
+            backdrop_path:
+              type: array
+              items:
+                type: string
+            duration_secs:
+              type: integer
+            duration:
+              type: string
+            is_adult:
+              type: integer
+            categories:
+              type: array
+              items:
+                type: integer
+            keywords:
+              type: array
+            certification:
+              type: string
+            certification_country:
+              type: string
+            certification_meaning:
+              type: string
+        vod:
+          type: object
+          properties:
+            stream_id:
+              type: string
+            name:
+              type: string
+            added:
+              type: string
+              format: date-time
+            links:
+              type: object
+              properties:
+                mp4:
+                  type: string
+                  format: uri
+            metadata:
+              $ref: '#/components/schemas/StreamMetadata'
+
+    SeriesContentResponse:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesContentItem'
+
+    RadioContentResponse:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/RadioContentItem'
+
+    RadioContentItem:
+      type: object
+      properties:
+        num:
+          type: integer
+        name:
+          type: string
+        stream_type:
+          type: string
+          enum: [radio]
+        stream_id:
+          type: string
+          format: uuid
+        stream_icon:
+          type: string
+          nullable: true
+        epg_channel_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        is_adult:
+          type: integer
+          enum: [0, 1]
+        categories:
+          type: array
+          items:
+            type: integer
+        links:
+          type: object
+          nullable: true
+          properties:
+            m3u8:
+              type: string
+              format: uri
+            ts:
+              type: string
+              format: uri
+        tv_archive:
+          type: integer
+        tv_archive_id:
+          type: string
+        tv_archive_duration:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/StreamMetadata'
+
+    CategoryItem:
+      type: object
+      properties:
+        category_id:
+          type: string
+        category_name:
+          type: string
+        category_icon:
+          type: string
+          nullable: true
+        parent_id:
+          type: integer
+
+    CategoriesResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryItem'
+        cache:
+          type: object
+          properties:
+            bouquets_key:
+              type: string
+
+    UserInfoResponse:
+      type: object
+      properties:
+        user_info:
+          type: object
+          properties:
+            username:
+              type: string
+            message:
+              type: string
+            auth:
+              type: integer
+              enum: [0, 1]
+            status:
+              type: string
+            expire_at:
+              type: string
+              nullable: true
+              format: date-time
+            active_connections:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            max_connections:
+              type: string
+            allowed_output_formats:
+              type: array
+              items:
+                type: string
+                enum: [m3u8, ts]
+        server_info:
+          type: object
+          properties:
+            time_now:
+              type: string
+              format: date-time
+            timezone:
+              type: string
+        lookup_service_info:
+          type: object
+          properties:
+            url:
+              type: string
+              nullable: true
+
+    SeriesDetailResponse:
+      type: object
+      properties:
+        seasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/Season'
+        info:
+          type: object
+          properties:
+            name:
+              type: string
+            cover:
+              type: string
+              format: uri
+            youtube_trailer:
+              type: string
+            genre:
+              type: string
+            release_date:
+              type: string
+            plot:
+              type: string
+            cast:
+              type: string
+            rating:
+              type: integer
+            rating_5based:
+              type: number
+            director:
+              type: string
+            backdrop_path:
+              type: array
+              items:
+                type: string
+                format: uri
+            last_modified:
+              type: string
+              format: date-time
+            episode_run_time:
+              type: string
+            categories:
+              type: array
+              items:
+                type: integer
+            tmdb_id:
+              type: integer
+            keywords:
+              type: array
+              items:
+                $ref: '#/components/schemas/Keyword'
+            certification:
+              type: string
+            certification_country:
+              type: string
+            certification_meaning:
+              type: string
+            is_adult:
+              type: integer
+        episodes:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/Episode'
+
+    Season:
+      type: object
+      properties:
+        air_date:
+          type: string
+        episode_count:
+          type: integer
+        name:
+          type: string
+        season_number:
+          type: string
+        overview:
+          type: string
+        cover:
+          type: string
+        cover_big:
+          type: string
+
+    Episode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tmdb_id:
+          type: integer
+        episode_num:
+          type: string
+        title:
+          type: string
+        added:
+          type: string
+          format: date-time
+        info:
+          type: object
+          properties:
+            movie_image:
+              type: string
+              format: uri
+            releaseDate:
+              type: string
+            youtube_trailer:
+              type: string
+            plot:
+              type: string
+            cast:
+              type: string
+            rating:
+              type: integer
+            rating_5based:
+              type: number
+            director:
+              type: string
+            duration_secs:
+              type: integer
+            duration:
+              type: string
+        links:
+          type: object
+          properties:
+            mkv:
+              type: string
+              format: uri
+        season:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/StreamMetadata'
+
+    ContentHashesResponse:
+      type: object
+      properties:
+        content:
+          type: object
+          properties:
+            server_time_now:
+              type: string
+              format: date-time
+            series_hash:
+              type: string
+            series_last_updated_at:
+              type: string
+              format: date-time
+            movies_hash:
+              type: string
+            movies_last_updated_at:
+              type: string
+              format: date-time
+            lives_hash:
+              type: string
+            lives_last_updated_at:
+              type: string
+              format: date-time
+            radios_hash:
+              type: string
+            radios_last_updated_at:
+              type: string
+              format: date-time
+            bouquets_key:
+              type: string
+              description: Bouquet hash to use as bkey parameter for caching
+            bouquets_movies_hash:
+              type: string
+            bouquets_lives_hash:
+              type: string
+            bouquets_radios_hash:
+              type: string
+            bouquets_series_hash:
+              type: string
+
+    LinksResponse:
+      type: object
+      properties:
+        links:
+          type: object
+          properties:
+            mp4:
+              type: string
+              format: uri
+              description: MP4 play link (for VOD)
+            m3u8:
+              type: string
+              format: uri
+              description: M3U8 play link (for live streams)
+            ts:
+              type: string
+              format: uri
+              description: TS play link (for live streams)
+            mkv:
+              type: string
+              format: uri
+              description: MKV play link (for series episodes)
+
+    NotificationsResponse:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        notifications:
+          type: array
+          items:
+            type: object
+
+    BouquetsResponse:
+      type: object
+      properties:
+        pagination:
+          type: array
+          description: Pagination metadata (may be empty)
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/BouquetItem'
+
+    BouquetItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Bouquet ID
+        name:
+          type: string
+          description: Bouquet name
+        is_enabled:
+          type: integer
+          enum: [0, 1]
+          description: Indicates if the bouquet is enabled for the authenticated user
+
+    BouquetStateResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Operation status
+          example: "success"
+        updated:
+          type: integer
+          description: Number of records updated
+          example: 1
+        line:
+          type: string
+          format: uuid
+          description: The authenticated user line identifier
+
+    ShortEpgResponse:
+      type: object
+      properties:
+        epg_listings:
+          type: array
+          items:
+            $ref: '#/components/schemas/EpgListing'
+
+    EpgListing:
+      type: object
+      properties:
+        id:
+          type: string
+          description: EPG listing ID
+        title:
+          type: string
+          description: Program title
+        description:
+          type: string
+          description: Program description
+        start:
+          type: string
+          format: date-time
+          description: Program start time
+        end:
+          type: string
+          format: date-time
+          description: Program end time
+        channel:
+          type: string
+          format: uuid
+          description: Channel/stream identifier
